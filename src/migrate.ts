@@ -1,6 +1,8 @@
+import { migrateAuthMethods } from "./auth";
 import { createClient } from "./client";
 import { log } from "./logger";
 import { ensureMount, writeSecret } from "./openbao";
+import { migratePolicies } from "./policies";
 import { Config, MigrationStats, SecretEntry } from "./types";
 import {
   getKVVersion,
@@ -81,11 +83,37 @@ export async function migrate(config: Config): Promise<MigrationStats> {
     totalSecrets: 0,
     migratedSecrets: 0,
     failedSecrets: 0,
+    totalPolicies: 0,
+    migratedPolicies: 0,
+    failedPolicies: 0,
+    totalAuthMethods: 0,
+    migratedAuthMethods: 0,
+    failedAuthMethods: 0,
     errors: [],
   };
 
-  // Step 1 — discover KV mounts
-  log.section("Step 1/3 — Discovering KV mounts");
+  // Step 1 — migrate policies
+  log.section("Step 1/5 — Migrating policies");
+  await migratePolicies(
+    vaultClient,
+    openbaoClient,
+    config.skipPolicies,
+    config.dryRun,
+    stats
+  );
+
+  // Step 2 — migrate auth methods
+  log.section("Step 2/5 — Migrating auth methods");
+  await migrateAuthMethods(
+    vaultClient,
+    openbaoClient,
+    config.skipAuthMethods,
+    config.dryRun,
+    stats
+  );
+
+  // Step 3 — discover KV mounts
+  log.section("Step 3/5 — Discovering KV mounts");
   const allMounts = await listMounts(vaultClient);
   stats.totalMounts = allMounts.length;
 
@@ -95,12 +123,12 @@ export async function migrate(config: Config): Promise<MigrationStats> {
   log.info(`Found ${allMounts.length} KV mounts, processing ${mounts.length}`);
 
   if (mounts.length === 0) {
-    log.warn("No mounts to migrate. Exiting.");
+    log.warn("No KV mounts to migrate.");
     return stats;
   }
 
-  // Step 2 — enumerate all secrets
-  log.section("Step 2/3 — Enumerating secrets");
+  // Step 4 — enumerate all secrets
+  log.section("Step 4/5 — Enumerating secrets");
   const allEntries: SecretEntry[] = [];
 
   for (const mount of mounts) {
@@ -127,8 +155,8 @@ export async function migrate(config: Config): Promise<MigrationStats> {
   stats.totalSecrets = allEntries.length;
   log.info(`\nTotal secrets to migrate: ${allEntries.length}`);
 
-  // Step 3 — migrate secrets
-  log.section("Step 3/3 — Migrating secrets");
+  // Step 5 — migrate secrets
+  log.section("Step 5/5 — Migrating secrets");
 
   const results = await runInBatches(
     allEntries,
