@@ -12,10 +12,7 @@ export async function migratePolicies(
   dryRun: boolean,
   stats: MigrationStats
 ): Promise<void> {
-  const response = await vaultClient.request({
-    method: "LIST",
-    url: "/v1/sys/policies/acl",
-  });
+  const response = await vaultClient.get("/v1/sys/policies/acl?list=true");
   const names: string[] =
     response.data.data?.keys ?? response.data.keys ?? [];
 

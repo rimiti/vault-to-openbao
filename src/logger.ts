@@ -5,6 +5,11 @@ function timestamp(): string {
 }
 
 export const log = {
+  debug: (msg: string) => {
+    if (process.env.DEBUG === "true") {
+      console.log(`${chalk.gray(timestamp())} ${chalk.magenta("DEBUG")} ${msg}`);
+    }
+  },
   info: (msg: string) => console.log(`${chalk.gray(timestamp())} ${chalk.blue("INFO")}  ${msg}`),
   success: (msg: string) => console.log(`${chalk.gray(timestamp())} ${chalk.green("OK")}    ${msg}`),
   warn: (msg: string) => console.warn(`${chalk.gray(timestamp())} ${chalk.yellow("WARN")}  ${msg}`),

@@ -40,13 +40,22 @@ async function migrateConfig(
   vaultClient: AxiosInstance,
   openbaoClient: AxiosInstance,
   configPath: string,
-  dryRun: boolean
+  dryRun: boolean,
+  errors: Array<{ path: string; error: string }>
 ): Promise<void> {
   const data = await safeGet(vaultClient, configPath);
   if (!data || Object.keys(data).length === 0) return;
 
   if (!dryRun) {
-    await openbaoClient.post(configPath, data);
+    try {
+      await openbaoClient.post(configPath, data);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      log.warn(`    Config migration failed for ${configPath} — ${message}`);
+      log.warn(`    Some fields (e.g. client secrets) are redacted by Vault and must be configured manually in OpenBao`);
+      errors.push({ path: configPath, error: message });
+      return;
+    }
   }
   log.info(
     `    ${dryRun ? "[DRY-RUN] Would migrate" : "Migrated"} config`
@@ -77,7 +86,7 @@ const handlers: Record<string, AuthHandler> = {
   },
 
   async kubernetes(vaultClient, openbaoClient, mountPath, dryRun, errors) {
-    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun);
+    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun, errors);
     await migrateNamedResources(
       vaultClient, openbaoClient,
       `/v1/auth/${mountPath}/role`,
@@ -100,7 +109,7 @@ const handlers: Record<string, AuthHandler> = {
   },
 
   async jwt(vaultClient, openbaoClient, mountPath, dryRun, errors) {
-    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun);
+    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun, errors);
     await migrateNamedResources(
       vaultClient, openbaoClient,
       `/v1/auth/${mountPath}/role`,
@@ -111,7 +120,7 @@ const handlers: Record<string, AuthHandler> = {
   },
 
   async ldap(vaultClient, openbaoClient, mountPath, dryRun, errors) {
-    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun);
+    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun, errors);
     await migrateNamedResources(
       vaultClient, openbaoClient,
       `/v1/auth/${mountPath}/groups`,
@@ -129,7 +138,7 @@ const handlers: Record<string, AuthHandler> = {
   },
 
   async github(vaultClient, openbaoClient, mountPath, dryRun, errors) {
-    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun);
+    await migrateConfig(vaultClient, openbaoClient, `/v1/auth/${mountPath}/config`, dryRun, errors);
     await migrateNamedResources(
       vaultClient, openbaoClient,
       `/v1/auth/${mountPath}/map/teams`,

@@ -69,11 +69,13 @@ async function migrateSecret(
 
 export async function migrate(config: Config): Promise<MigrationStats> {
   const vaultClient = createClient(
+    "vault",
     config.vault.addr,
     config.vault.token,
     config.skipTlsVerify
   );
   const openbaoClient = createClient(
+    "openbao",
     config.openbao.addr,
     config.openbao.token,
     config.skipTlsVerify

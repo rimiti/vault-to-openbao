@@ -39,10 +39,8 @@ export async function listSecretsRecursive(
 
   let keys: string[];
   try {
-    const response = await client.request({
-      method: "LIST",
-      url: listPath,
-    });
+    const separator = listPath.includes("?") ? "&" : "?";
+    const response = await client.get(`${listPath}${separator}list=true`);
     keys = response.data.data?.keys ?? [];
   } catch (err: unknown) {
     if (

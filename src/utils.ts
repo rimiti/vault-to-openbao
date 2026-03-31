@@ -14,7 +14,8 @@ export async function safeList(
   path: string
 ): Promise<string[]> {
   try {
-    const res = await client.request({ method: "LIST", url: path });
+    const separator = path.includes("?") ? "&" : "?";
+    const res = await client.get(`${path}${separator}list=true`);
     return res.data.data?.keys ?? [];
   } catch (err: unknown) {
     if (isNotFound(err)) return [];
